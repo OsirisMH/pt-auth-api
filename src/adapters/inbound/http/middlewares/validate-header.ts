@@ -4,9 +4,11 @@ import z, { ZodType } from 'zod';
 export const validateHeaders =
   (schema: ZodType): RequestHandler =>
   (req, res, next) => {
+    console.log('header', req.header('authorization'))
     const parsed = schema.safeParse({
       authorization: req.header('authorization') ?? '',
     });
+    
 
     if (!parsed.success) {
       return next({

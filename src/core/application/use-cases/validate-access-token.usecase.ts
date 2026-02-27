@@ -8,7 +8,7 @@ AccessTokenInvalidError,
 import { EmployeeStatus } from '../../domain';
 
 type Input = { accessToken: string };
-type Output = { id: number; email: string; roles: string[] };
+type Output = { id: number; name: string; email: string; roles: string[] };
 
 export class ValidateAccessTokenUseCase {
   constructor(
@@ -33,6 +33,6 @@ export class ValidateAccessTokenUseCase {
 
     const roles = await this.roles.getRolesByEmployeeId(employee.id);
 
-    return { id: employee.id, email: employee.email, roles };
+    return { id: employee.id, name: employee.name, email: employee.email, roles };
   }
 }

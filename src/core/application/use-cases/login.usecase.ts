@@ -11,12 +11,12 @@ type Input = { email: string; password: string };
 type Output = {
   accessToken: string;
   refreshToken: string;
-  user: { id: number; email: string; roles: string[] };
+  user: { id: number; name: string; email: string; roles: string[] };
 };
 
 export class LoginUseCase {
   constructor(
-    private readonly users: EmployeeRepoPort,
+    private readonly employees: EmployeeRepoPort,
     private readonly roles: EmployeeRolesRepoPort,
     private readonly hasher: PasswordHasherPort,
     private readonly tokens: TokenServicePort,
@@ -27,34 +27,35 @@ export class LoginUseCase {
   async execute(input: Input): Promise<Output> {
     const email = input.email.trim().toLowerCase();
 
-    const user = await this.users.findEmployeeByEmail(email);
-    if (!user) throw new InvalidCredentialsError();
-    if (user.statusId !== EmployeeStatus.Active) throw new UserInactiveError();
+    const employee = await this.employees.findEmployeeByEmail(email);
+    if (!employee) throw new InvalidCredentialsError();
+    if (employee.statusId !== EmployeeStatus.Active) throw new UserInactiveError();
 
-    const ok = await this.hasher.verify(user.password, input.password);
+    const ok = await this.hasher.verify(employee.password, input.password);
     if (!ok) throw new InvalidCredentialsError();
 
-    const roles = await this.roles.getRolesByEmployeeId(user.id);
+    const roles = await this.roles.getRolesByEmployeeId(employee.id);
 
     const accessToken = await this.tokens.signAccessToken({
-      sub: String(user.id),
-      email: user.email,
+      name: employee.name,
+      sub: String(employee.id),
+      email: employee.email,
       roles,
     });
 
     const now = this.clock.now();
-    await this.refreshRepo.revokeActiveByUserId(user.id, now);
+    await this.refreshRepo.revokeActiveByEmployeeId(employee.id, now);
 
     const refreshToken = await this.tokens.generateRefreshToken();
     const refreshTokenHash = await this.hasher.hash(refreshToken);
     const expiresAt = this.clock.addDays(now, 7);
 
-    await this.refreshRepo.createForUser({ employeeId: user.id, tokenHash: refreshTokenHash, expiresAt });
+    await this.refreshRepo.createForUser({ employeeId: employee.id, tokenHash: refreshTokenHash, expiresAt });
 
     return {
       accessToken,
       refreshToken,
-      user: { id: user.id, email: user.email, roles },
+      user: { id: employee.id, name: employee.name, email: employee.email, roles },
     };
   }
 }

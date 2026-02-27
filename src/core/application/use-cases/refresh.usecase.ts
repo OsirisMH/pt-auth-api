@@ -16,7 +16,7 @@ type Output = { accessToken: string; refreshToken: string };
 
 export class RefreshUseCase {
   constructor(
-    private readonly users: EmployeeRepoPort,
+    private readonly employees: EmployeeRepoPort,
     private readonly roles: EmployeeRolesRepoPort,
     private readonly refreshRepo: RefreshTokenRepoPort,
     private readonly hasher: PasswordHasherPort,
@@ -35,15 +35,16 @@ export class RefreshUseCase {
     const ok = await this.hasher.verify(active.tokenHash, input.refreshToken);
     if (!ok) throw new RefreshTokenInvalidError();
 
-    const user = await this.users.findEmployeeById(input.employeeId);
-    if (!user) throw new RefreshTokenInvalidError();
-    if (user.statusId !== EmployeeStatus.Active) throw new UserInactiveError();
+    const employee = await this.employees.findEmployeeById(input.employeeId);
+    if (!employee) throw new RefreshTokenInvalidError();
+    if (employee.statusId !== EmployeeStatus.Active) throw new UserInactiveError();
 
-    const roles = await this.roles.getRolesByEmployeeId(user.id);
+    const roles = await this.roles.getRolesByEmployeeId(employee.id);
 
     const accessToken = await this.tokens.signAccessToken({
-      sub: String(user.id),
-      email: user.email,
+      name: employee.name,
+      sub: String(employee.id),
+      email: employee.email,
       roles,
     });
 
@@ -53,7 +54,7 @@ export class RefreshUseCase {
 
     await this.refreshRepo.revokeById(active.id, active.revokedAt!);
     const created = await this.refreshRepo.createForUser({
-      employeeId: user.id,
+      employeeId: employee.id,
       tokenHash: newRefreshHash,
       expiresAt: newExpiresAt,
     });
